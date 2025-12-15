@@ -38,15 +38,14 @@ st.markdown("""
 <style>
     .main-header {font-size: 2.2rem; font-weight: bold; color: #1a9641; text-align: center; padding: 0.5rem;}
     .sub-header {font-size: 1rem; color: #666; text-align: center; margin-bottom: 1rem;}
-    .indice-description {
-        background-color: #f0f7f0;
-        border-left: 4px solid #1a9641;
-        padding: 10px 15px;
-        margin: 10px 0;
-        border-radius: 0 8px 8px 0;
-        font-size: 0.9rem;
+    
+    /* Reducir tamaño de métricas */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
     }
-    .logo-container {text-align: center; padding: 10px;}
+    [data-testid="stMetricLabel"] {
+        font-size: 0.8rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -58,7 +57,7 @@ GPKG_PATH = "datos/Individualizacion_consolidado_oct_dic.gpkg"
 POLIGONOS_PATH = "datos/Poligonos_Abud.gpkg"
 
 # Ruta al logo (PNG o JPG)
-LOGO_PATH = 'assets/logo.png'
+LOGO_PATH = 'datos/logo.png'
 
 # =============================================================================
 # COLORES Y CONFIGURACIÓN
@@ -546,8 +545,11 @@ def crear_mapa_folium(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None)
     m = folium.Map(location=[center_lat, center_lon], zoom_start=17, max_zoom=22, tiles=None)
     
     folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='ESRI', name='Satélite', max_zoom=22, max_native_zoom=19
+        tiles='https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        attr='Google',
+        name='Satélite',
+        max_zoom=22,
+        max_native_zoom=20
     ).add_to(m)
     
     # Agregar polígonos de cuarteles si están disponibles
@@ -1097,8 +1099,7 @@ def tab_comparacion(df, indice):
     df_resumen = df_resumen.sort_values(['Cuartel', 'Fecha'])
     
     st.dataframe(
-        df_resumen.style.background_gradient(subset=['Media'], cmap='RdYlGn')
-                       .background_gradient(subset=['% Sanos'], cmap='RdYlGn'),
+        df_resumen,
         use_container_width=True,
         hide_index=True
     )
@@ -1126,7 +1127,7 @@ def tab_comparacion(df, indice):
         diff_df = diff_df.round(3)
         
         st.dataframe(
-            diff_df.style.background_gradient(subset=['Diferencia'], cmap='RdYlGn', vmin=-0.1, vmax=0.1),
+            diff_df,
             use_container_width=True,
             hide_index=True
         )
