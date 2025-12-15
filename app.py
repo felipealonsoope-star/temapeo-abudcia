@@ -314,7 +314,7 @@ def mostrar_descripcion_indice(indice):
         info = INDICES_INFO[indice]
         st.markdown(f"""
         <div class="indice-description">
-            <strong>📊 {info['nombre_completo']}</strong> | <em>{info['categoria']}</em><br>
+            <strong>📊 {info['nombre_completo']} ({indice.upper()})</strong> | <em>{info['categoria']}</em><br>
             {info['descripcion']}<br>
             <small>Rango típico: {info['rango']}</small>
         </div>
@@ -816,11 +816,6 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         info_sup1 = obtener_info_superficie(df1, gdf_poligonos)
         info_sup2 = obtener_info_superficie(df2, gdf_poligonos)
         
-        # Análisis comparativo automático (ahora muestra directamente)
-        generar_analisis_comparativo(df, indice, fecha1, fecha2)
-        
-        st.markdown("---")
-        
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f"### 📅 Vuelo: {fecha1}")
@@ -1006,6 +1001,13 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
                 use_container_width=True,
                 hide_index=True
             )
+    
+    # Análisis comparativo al final (después de todo lo visual)
+    if mostrar_comparacion:
+        fecha1, fecha2 = fechas_unicas[0], fechas_unicas[1]
+        st.markdown("---")
+        st.subheader("📈 Análisis Comparativo")
+        generar_analisis_comparativo(df, indice, fecha1, fecha2)
 
 
 def tab_analisis(df, indice, fechas_sel):
