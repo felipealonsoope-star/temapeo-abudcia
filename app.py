@@ -1257,7 +1257,11 @@ def crear_sidebar(df):
         
         st.markdown("---")
         st.header("📊 Índice")
-        indices = [k for k in INDICES_INFO.keys() if k in df.columns]
+        
+        # Solo mostrar los 4 índices más relevantes para frutales
+        INDICES_PERMITIDOS = ['ndvi', 'osavi', 'ndre', 'lci']
+        indices = [k for k in INDICES_PERMITIDOS if k in df.columns and k in INDICES_INFO]
+        
         indice_sel = st.selectbox(
             "Seleccionar", 
             indices, 
