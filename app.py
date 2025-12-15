@@ -901,55 +901,99 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         st.markdown("---")
         st.subheader("📋 Resumen por Cuartel")
         
+        # Verificar si hay múltiples vuelos
+        fechas_en_datos = []
+        if 'fecha_vuelo' in df.columns:
+            fechas_en_datos = sorted([str(f) for f in df['fecha_vuelo'].dropna().unique()])
+        
+        hay_multiples_vuelos = len(fechas_en_datos) >= 2
+        
         # Crear tabla solo con cuarteles que tienen datos en el dataframe filtrado
         resumen_list = []
         
-        # Agrupar datos por cuartel del dataframe filtrado
-        for cuartel in df['Cuartel'].dropna().unique():
-            df_cuartel = df[df['Cuartel'] == cuartel]
-            
-            if len(df_cuartel) == 0:
-                continue
-            
-            # Tomar especie y variedad de los DATOS FILTRADOS (no del polígono)
-            especie_datos = df_cuartel['Especie'].iloc[0] if 'Especie' in df_cuartel.columns else 'N/A'
-            variedad_datos = df_cuartel['Variedad'].iloc[0] if 'Variedad' in df_cuartel.columns else 'N/A'
-            
-            # Buscar superficie del polígono
-            poligono_info = gdf_poligonos[gdf_poligonos['Cuartel'] == cuartel]
-            
-            if len(poligono_info) > 0:
-                row = poligono_info.iloc[0]
-                sup_ha = row.get('Superficie_ha', 0)
-                año_pol = row.get('Apla', 'N/A')
-            else:
-                sup_ha = 0
-                año_pol = 'N/A'
-            
-            n_arboles = len(df_cuartel)
-            
-            col_clase = f"{indice}_clase"
-            pct_sanos = 0
-            if col_clase in df_cuartel.columns:
-                pct_sanos = (df_cuartel[col_clase].apply(
-                    lambda x: 'alto' in str(x).lower() and 'bajo' not in str(x).lower()
-                ).sum() / len(df_cuartel) * 100)
-            
-            resumen_list.append({
-                'Cuartel': cuartel,
-                'Especie': especie_datos,
-                'Variedad': variedad_datos,
-                'Año': año_pol,
-                'Sup. (ha)': round(sup_ha, 1) if sup_ha > 0 else None,
-                'N° Árboles': n_arboles,
-                'Árb/ha': int(round(n_arboles / sup_ha, 0)) if sup_ha > 0 else None,
-                f'{indice.upper()} μ': round(df_cuartel[indice].mean(), 3),
-                '% Sanos': round(pct_sanos, 1)
-            })
+        if hay_multiples_vuelos:
+            # Mostrar tabla con ambos vuelos para comparar
+            for cuartel in df['Cuartel'].dropna().unique():
+                for fecha in fechas_en_datos:
+                    df_cuartel = df[(df['Cuartel'] == cuartel) & (df['fecha_vuelo'].astype(str) == fecha)]
+                    
+                    if len(df_cuartel) == 0:
+                        continue
+                    
+                    especie_datos = df_cuartel['Especie'].iloc[0] if 'Especie' in df_cuartel.columns else 'N/A'
+                    variedad_datos = df_cuartel['Variedad'].iloc[0] if 'Variedad' in df_cuartel.columns else 'N/A'
+                    
+                    poligono_info = gdf_poligonos[gdf_poligonos['Cuartel'] == cuartel]
+                    sup_ha = poligono_info.iloc[0].get('Superficie_ha', 0) if len(poligono_info) > 0 else 0
+                    
+                    n_arboles = len(df_cuartel)
+                    
+                    col_clase = f"{indice}_clase"
+                    pct_sanos = 0
+                    if col_clase in df_cuartel.columns:
+                        pct_sanos = (df_cuartel[col_clase].apply(
+                            lambda x: 'alto' in str(x).lower() and 'bajo' not in str(x).lower()
+                        ).sum() / len(df_cuartel) * 100)
+                    
+                    resumen_list.append({
+                        'Vuelo': fecha,
+                        'Cuartel': cuartel,
+                        'Especie': especie_datos,
+                        'Variedad': variedad_datos,
+                        'Sup. (ha)': round(sup_ha, 1) if sup_ha > 0 else None,
+                        'N° Árboles': n_arboles,
+                        'Árb/ha': int(round(n_arboles / sup_ha, 0)) if sup_ha > 0 else None,
+                        f'{indice.upper()} μ': round(df_cuartel[indice].mean(), 3),
+                        '% Sanos': round(pct_sanos, 1)
+                    })
+        else:
+            # Tabla simple sin columna de vuelo
+            for cuartel in df['Cuartel'].dropna().unique():
+                df_cuartel = df[df['Cuartel'] == cuartel]
+                
+                if len(df_cuartel) == 0:
+                    continue
+                
+                especie_datos = df_cuartel['Especie'].iloc[0] if 'Especie' in df_cuartel.columns else 'N/A'
+                variedad_datos = df_cuartel['Variedad'].iloc[0] if 'Variedad' in df_cuartel.columns else 'N/A'
+                
+                poligono_info = gdf_poligonos[gdf_poligonos['Cuartel'] == cuartel]
+                
+                if len(poligono_info) > 0:
+                    row = poligono_info.iloc[0]
+                    sup_ha = row.get('Superficie_ha', 0)
+                    año_pol = row.get('Apla', 'N/A')
+                else:
+                    sup_ha = 0
+                    año_pol = 'N/A'
+                
+                n_arboles = len(df_cuartel)
+                
+                col_clase = f"{indice}_clase"
+                pct_sanos = 0
+                if col_clase in df_cuartel.columns:
+                    pct_sanos = (df_cuartel[col_clase].apply(
+                        lambda x: 'alto' in str(x).lower() and 'bajo' not in str(x).lower()
+                    ).sum() / len(df_cuartel) * 100)
+                
+                resumen_list.append({
+                    'Cuartel': cuartel,
+                    'Especie': especie_datos,
+                    'Variedad': variedad_datos,
+                    'Año': año_pol,
+                    'Sup. (ha)': round(sup_ha, 1) if sup_ha > 0 else None,
+                    'N° Árboles': n_arboles,
+                    'Árb/ha': int(round(n_arboles / sup_ha, 0)) if sup_ha > 0 else None,
+                    f'{indice.upper()} μ': round(df_cuartel[indice].mean(), 3),
+                    '% Sanos': round(pct_sanos, 1)
+                })
         
         if resumen_list:
             df_resumen = pd.DataFrame(resumen_list)
-            df_resumen = df_resumen.sort_values('Cuartel')
+            if hay_multiples_vuelos:
+                df_resumen = df_resumen.sort_values(['Cuartel', 'Vuelo'])
+            else:
+                df_resumen = df_resumen.sort_values('Cuartel')
             
             st.dataframe(
                 df_resumen.style.format({
@@ -1099,7 +1143,14 @@ def tab_comparacion(df, indice):
     df_resumen = df_resumen.sort_values(['Cuartel', 'Fecha'])
     
     st.dataframe(
-        df_resumen,
+        df_resumen.style.format({
+            'N° Árboles': lambda x: f'{x:,.0f}'.replace(',', '.'),
+            'Media': '{:.3f}',
+            'Desv.Est': '{:.3f}',
+            'Mín': '{:.3f}',
+            'Máx': '{:.3f}',
+            '% Sanos': '{:.1f}'
+        }),
         use_container_width=True,
         hide_index=True
     )
