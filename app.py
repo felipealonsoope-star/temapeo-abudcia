@@ -1006,7 +1006,6 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
     if mostrar_comparacion:
         fecha1, fecha2 = fechas_unicas[0], fechas_unicas[1]
         st.markdown("---")
-        st.subheader("📈 Análisis Comparativo")
         generar_analisis_comparativo(df, indice, fecha1, fecha2)
 
 
