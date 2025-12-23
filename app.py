@@ -30,7 +30,7 @@ def mostrar_mapa_seguro(fig, height, key):
     """Muestra el mapa Plotly con manejo de errores."""
     try:
         if fig is not None:
-            st.plotly_chart(fig, use_container_width=True, key=key)
+            st.plotly_chart(fig, width="stretch", key=key)
         else:
             st.warning("No hay datos para mostrar en el mapa")
     except Exception as e:
@@ -245,14 +245,28 @@ INDICES_INFO = {
 def cargar_logo():
     """Carga el logo si existe."""
     if os.path.exists(LOGO_PATH):
-        try:
-            with open(LOGO_PATH, "rb") as f:
-                data = base64.b64encode(f.read()).decode()
-            ext = LOGO_PATH.split('.')[-1].lower()
-            return f"data:image/{ext};base64,{data}"
-        except:
-            return None
+        return LOGO_PATH
     return None
+
+
+def mostrar_logo_sidebar():
+    """Muestra el logo en el sidebar."""
+    if os.path.exists(LOGO_PATH):
+        try:
+            st.image(LOGO_PATH, width=180)
+        except:
+            pass
+
+
+def mostrar_logo_header():
+    """Muestra el logo en el header."""
+    if os.path.exists(LOGO_PATH):
+        try:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.image(LOGO_PATH, width=220)
+        except:
+            pass
 
 
 @st.cache_data
@@ -532,7 +546,7 @@ def generar_analisis_comparativo(df, indice, fecha1, fecha2):
         'Cambio': [f"{cambio:+.3f} ({cambio_pct:+.1f}%)", f"{cambio_sanos:+.1f}%"]
     })
     
-    st.dataframe(tabla_comp, use_container_width=True, hide_index=True)
+    st.dataframe(tabla_comp, width="stretch", hide_index=True)
     
     # Interpretación
     if cambio_pct > 5:
@@ -629,10 +643,26 @@ def crear_mapa_plotly(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None)
                 ))
     
     # Agrupar puntos por clase para la leyenda
+    def clasificar_punto(clase_str):
+        clase_lower = str(clase_str).lower()
+        if 'muy bajo' in clase_lower:
+            return 'Muy bajo'
+        elif 'medio-alto' in clase_lower or 'medio alto' in clase_lower:
+            return 'Medio-alto'
+        elif 'medio' in clase_lower:
+            return 'Medio'
+        elif 'bajo' in clase_lower:
+            return 'Bajo'
+        elif 'alto' in clase_lower:
+            return 'Alto'
+        return 'Sin dato'
+    
+    df_plot['clase_simple'] = df_plot[col_clase].apply(clasificar_punto)
+    
     clases_orden = ['Muy bajo', 'Bajo', 'Medio', 'Medio-alto', 'Alto']
     
     for clase in clases_orden:
-        df_clase = df_plot[df_plot[col_clase].str.lower().str.contains(clase.lower(), na=False)]
+        df_clase = df_plot[df_plot['clase_simple'] == clase]
         if len(df_clase) == 0:
             continue
         
@@ -775,11 +805,27 @@ def crear_mapa_plotly_satelite(df, indice, radio_puntos=3, titulo="", gdf_poligo
                     showlegend=False
                 ))
     
-    # Agrupar puntos por clase
+    # Agrupar puntos por clase usando la misma lógica que asignar_color_hex
+    def clasificar_punto(clase_str):
+        clase_lower = str(clase_str).lower()
+        if 'muy bajo' in clase_lower:
+            return 'Muy bajo'
+        elif 'medio-alto' in clase_lower or 'medio alto' in clase_lower:
+            return 'Medio-alto'
+        elif 'medio' in clase_lower:
+            return 'Medio'
+        elif 'bajo' in clase_lower:
+            return 'Bajo'
+        elif 'alto' in clase_lower:
+            return 'Alto'
+        return 'Sin dato'
+    
+    df_plot['clase_simple'] = df_plot[col_clase].apply(clasificar_punto)
+    
     clases_orden = ['Muy bajo', 'Bajo', 'Medio', 'Medio-alto', 'Alto']
     
     for clase in clases_orden:
-        df_clase = df_plot[df_plot[col_clase].str.lower().str.contains(clase.lower(), na=False)]
+        df_clase = df_plot[df_plot['clase_simple'] == clase]
         if len(df_clase) == 0:
             continue
         
@@ -1050,14 +1096,14 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             df1_sample = df1.sample(n=min(3000, len(df1)), random_state=42) if len(df1) > 3000 else df1
             mapa1 = crear_mapa_plotly_satelite(df1_sample, indice, radio_puntos, f"{indice.upper()} - {fecha1}", gdf_poligonos)
             if mapa1:
-                st.plotly_chart(mapa1, use_container_width=True, key="mapa1")
+                st.plotly_chart(mapa1, width="stretch", key="mapa1")
         
         with col2:
             st.markdown(f"**🗺️ Mapa - {fecha2}**")
             df2_sample = df2.sample(n=min(3000, len(df2)), random_state=42) if len(df2) > 3000 else df2
             mapa2 = crear_mapa_plotly_satelite(df2_sample, indice, radio_puntos, f"{indice.upper()} - {fecha2}", gdf_poligonos)
             if mapa2:
-                st.plotly_chart(mapa2, use_container_width=True, key="mapa2")
+                st.plotly_chart(mapa2, width="stretch", key="mapa2")
         
         st.markdown("---")
         
@@ -1065,11 +1111,11 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         with col1:
             fig1 = crear_grafico_distribucion(df1, indice, f"Distribución - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(fig1, width="stretch")
         with col2:
             fig2 = crear_grafico_distribucion(df2, indice, f"Distribución - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width="stretch")
     
     else:
         mostrar_kpis(df, indice, info_superficie=info_sup)
@@ -1099,14 +1145,14 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             df_mapa = df.sample(n=min(4000, len(df)), random_state=42) if len(df) > 4000 else df
             mapa = crear_mapa_plotly_satelite(df_mapa, indice, radio_puntos, gdf_poligonos=gdf_poligonos)
             if mapa:
-                st.plotly_chart(mapa, use_container_width=True, key="mapa_single")
+                st.plotly_chart(mapa, width="stretch", key="mapa_single")
         
         with col2:
             st.subheader("📊 Distribución")
             fig = crear_grafico_distribucion(df, indice)
             if fig:
                 fig.update_layout(height=550)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
     
     # Tabla resumen por cuartel con superficie
     if info_sup and gdf_poligonos is not None:
@@ -1215,7 +1261,7 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
                     f'{indice.upper()} μ': '{:.3f}',
                     '% Sanos': '{:.1f}'
                 }),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True
             )
     
@@ -1247,11 +1293,11 @@ def tab_analisis(df, indice, fechas_sel):
         with col1:
             fig1 = crear_histograma(df1, indice, f"Histograma - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(fig1, width="stretch")
         with col2:
             fig2 = crear_histograma(df2, indice, f"Histograma - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width="stretch")
         
         st.markdown("---")
         
@@ -1260,11 +1306,11 @@ def tab_analisis(df, indice, fechas_sel):
         with col1:
             fig1 = crear_boxplot(df1, indice, f"Por Cuartel - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(fig1, width="stretch")
         with col2:
             fig2 = crear_boxplot(df2, indice, f"Por Cuartel - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width="stretch")
         
         st.markdown("---")
         
@@ -1287,12 +1333,12 @@ def tab_analisis(df, indice, fechas_sel):
             st.subheader("📊 Histograma")
             fig = crear_histograma(df, indice)
             if fig:
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         with col2:
             st.subheader("📦 Por Cuartel")
             fig = crear_boxplot(df, indice)
             if fig:
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
 
 def tab_comparacion(df, indice):
@@ -1327,7 +1373,7 @@ def tab_comparacion(df, indice):
             marker_color=asignar_color_hex(clase)
         ))
     fig.update_layout(barmode='stack', height=400, xaxis_title="Fecha de Vuelo", yaxis_title="Porcentaje (%)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     
     st.markdown("---")
     
@@ -1369,7 +1415,7 @@ def tab_comparacion(df, indice):
             'Máx': '{:.3f}',
             '% Sanos': '{:.1f}'
         }),
-        use_container_width=True,
+        width="stretch",
         hide_index=True
     )
     
@@ -1397,7 +1443,7 @@ def tab_comparacion(df, indice):
         
         st.dataframe(
             diff_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True
         )
 
@@ -1442,7 +1488,7 @@ def tab_datos(df, indices_disponibles):
     if 'lat' in df_mostrar.columns:
         df_mostrar = df_mostrar.rename(columns={'lat': 'Latitud', 'lon': 'Longitud'})
     
-    st.dataframe(df_mostrar, use_container_width=True, height=500)
+    st.dataframe(df_mostrar, width="stretch", height=500)
     
     st.markdown("---")
     
@@ -1482,11 +1528,7 @@ def crear_sidebar(df):
     
     with st.sidebar:
         # Logo
-        logo_data = cargar_logo()
-        if logo_data:
-            st.markdown(f'<div class="logo-container"><img src="{logo_data}" width="180"></div>', unsafe_allow_html=True)
-        else:
-            st.markdown("### 🌳 TeMapeo")
+        mostrar_logo_sidebar()
         
         st.markdown("---")
         st.header("🔍 Filtros")
@@ -1559,15 +1601,8 @@ def crear_sidebar(df):
 
 def main():
     # Header con logo centrado
-    logo_data = cargar_logo()
-    if logo_data:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown(f'<div style="text-align: center; padding: 10px;"><img src="{logo_data}" width="220"></div>', unsafe_allow_html=True)
-            st.markdown('<p class="sub-header">Dashboard de Individualización de Árboles Frutales</p>', unsafe_allow_html=True)
-    else:
-        st.markdown('<p class="main-header">🌳 TeMapeo Viewer</p>', unsafe_allow_html=True)
-        st.markdown('<p class="sub-header">Dashboard de Individualización de Árboles Frutales</p>', unsafe_allow_html=True)
+    mostrar_logo_header()
+    st.markdown('<p class="sub-header">Dashboard de Individualización de Árboles Frutales</p>', unsafe_allow_html=True)
     
     # Cargar datos
     df = cargar_datos(GPKG_PATH)
