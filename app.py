@@ -24,7 +24,6 @@ from plotly.subplots import make_subplots
 from datetime import datetime
 import os
 import base64
-import time
 
 
 def mostrar_mapa_seguro(fig, height, key):
@@ -564,7 +563,12 @@ def crear_mapa_plotly(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None)
     df_plot = df.copy()
     df_plot['color'] = df_plot[col_clase].apply(asignar_color_hex)
     df_plot['indice_valor'] = df_plot[indice].round(3)
-    df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
+    
+    # Manejar altura_m que puede no existir
+    if 'altura_m' in df_plot.columns:
+        df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
+    else:
+        df_plot['altura_str'] = "N/A"
     
     # Texto para hover
     df_plot['hover_text'] = df_plot.apply(
@@ -700,7 +704,7 @@ def crear_mapa_plotly(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None)
 
 
 def crear_mapa_plotly_satelite(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None):
-    """Crea mapa con Plotly usando tiles satelitales de ESRI."""
+    """Crea mapa con Plotly usando tiles satelitales de Google."""
     col_clase = f"{indice}_clase"
     if col_clase not in df.columns or len(df) == 0:
         return None
@@ -709,7 +713,12 @@ def crear_mapa_plotly_satelite(df, indice, radio_puntos=3, titulo="", gdf_poligo
     df_plot = df.copy()
     df_plot['color'] = df_plot[col_clase].apply(asignar_color_hex)
     df_plot['indice_valor'] = df_plot[indice].round(3)
-    df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
+    
+    # Manejar altura_m que puede no existir
+    if 'altura_m' in df_plot.columns:
+        df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
+    else:
+        df_plot['altura_str'] = "N/A"
     
     # Texto para hover
     df_plot['hover_text'] = df_plot.apply(
