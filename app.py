@@ -61,18 +61,18 @@ st.markdown("""
     .main-header {font-size: 2.2rem; font-weight: bold; color: #1a9641; text-align: center; padding: 0.5rem;}
     .sub-header {font-size: 1rem; color: #666; text-align: center; margin-bottom: 1rem;}
     
-    /* Reducir tamaño de métricas KPI */
+    /* Reducir tamaño de métricas KPI - más compacto */
     [data-testid="stMetricValue"] {
-        font-size: 1.2rem !important;
+        font-size: 0.95rem !important;
     }
     [data-testid="stMetricLabel"] {
-        font-size: 0.75rem !important;
-    }
-    [data-testid="stMetricDelta"] {
         font-size: 0.7rem !important;
     }
+    [data-testid="stMetricDelta"] {
+        font-size: 0.65rem !important;
+    }
     div[data-testid="metric-container"] {
-        padding: 0.3rem !important;
+        padding: 0.2rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
