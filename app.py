@@ -30,7 +30,7 @@ def mostrar_mapa_seguro(fig, height, key):
     """Muestra el mapa Plotly con manejo de errores."""
     try:
         if fig is not None:
-            st.plotly_chart(fig, width="stretch", key=key)
+            st.plotly_chart(fig, use_container_width=True, key=key)
         else:
             st.warning("No hay datos para mostrar en el mapa")
     except Exception as e:
@@ -546,7 +546,7 @@ def generar_analisis_comparativo(df, indice, fecha1, fecha2):
         'Cambio': [f"{cambio:+.3f} ({cambio_pct:+.1f}%)", f"{cambio_sanos:+.1f}%"]
     })
     
-    st.dataframe(tabla_comp, width="stretch", hide_index=True)
+    st.dataframe(tabla_comp, use_container_width=True, hide_index=True)
     
     # Interpretación
     if cambio_pct > 5:
@@ -1096,14 +1096,14 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             df1_sample = df1.sample(n=min(3000, len(df1)), random_state=42) if len(df1) > 3000 else df1
             mapa1 = crear_mapa_plotly_satelite(df1_sample, indice, radio_puntos, f"{indice.upper()} - {fecha1}", gdf_poligonos)
             if mapa1:
-                st.plotly_chart(mapa1, width="stretch", key="mapa1")
+                st.plotly_chart(mapa1, use_container_width=True, key="mapa1")
         
         with col2:
             st.markdown(f"**🗺️ Mapa - {fecha2}**")
             df2_sample = df2.sample(n=min(3000, len(df2)), random_state=42) if len(df2) > 3000 else df2
             mapa2 = crear_mapa_plotly_satelite(df2_sample, indice, radio_puntos, f"{indice.upper()} - {fecha2}", gdf_poligonos)
             if mapa2:
-                st.plotly_chart(mapa2, width="stretch", key="mapa2")
+                st.plotly_chart(mapa2, use_container_width=True, key="mapa2")
         
         st.markdown("---")
         
@@ -1111,11 +1111,11 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         with col1:
             fig1 = crear_grafico_distribucion(df1, indice, f"Distribución - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, width="stretch")
+                st.plotly_chart(fig1, use_container_width=True)
         with col2:
             fig2 = crear_grafico_distribucion(df2, indice, f"Distribución - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, width="stretch")
+                st.plotly_chart(fig2, use_container_width=True)
     
     else:
         mostrar_kpis(df, indice, info_superficie=info_sup)
@@ -1145,14 +1145,14 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             df_mapa = df.sample(n=min(4000, len(df)), random_state=42) if len(df) > 4000 else df
             mapa = crear_mapa_plotly_satelite(df_mapa, indice, radio_puntos, gdf_poligonos=gdf_poligonos)
             if mapa:
-                st.plotly_chart(mapa, width="stretch", key="mapa_single")
+                st.plotly_chart(mapa, use_container_width=True, key="mapa_single")
         
         with col2:
             st.subheader("📊 Distribución")
             fig = crear_grafico_distribucion(df, indice)
             if fig:
                 fig.update_layout(height=550)
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
     
     # Tabla resumen por cuartel con superficie
     if info_sup and gdf_poligonos is not None:
@@ -1261,7 +1261,7 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
                     f'{indice.upper()} μ': '{:.3f}',
                     '% Sanos': '{:.1f}'
                 }),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True
             )
     
@@ -1293,11 +1293,11 @@ def tab_analisis(df, indice, fechas_sel):
         with col1:
             fig1 = crear_histograma(df1, indice, f"Histograma - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, width="stretch")
+                st.plotly_chart(fig1, use_container_width=True)
         with col2:
             fig2 = crear_histograma(df2, indice, f"Histograma - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, width="stretch")
+                st.plotly_chart(fig2, use_container_width=True)
         
         st.markdown("---")
         
@@ -1306,11 +1306,11 @@ def tab_analisis(df, indice, fechas_sel):
         with col1:
             fig1 = crear_boxplot(df1, indice, f"Por Cuartel - {fecha1}")
             if fig1:
-                st.plotly_chart(fig1, width="stretch")
+                st.plotly_chart(fig1, use_container_width=True)
         with col2:
             fig2 = crear_boxplot(df2, indice, f"Por Cuartel - {fecha2}")
             if fig2:
-                st.plotly_chart(fig2, width="stretch")
+                st.plotly_chart(fig2, use_container_width=True)
         
         st.markdown("---")
         
@@ -1333,12 +1333,12 @@ def tab_analisis(df, indice, fechas_sel):
             st.subheader("📊 Histograma")
             fig = crear_histograma(df, indice)
             if fig:
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
         with col2:
             st.subheader("📦 Por Cuartel")
             fig = crear_boxplot(df, indice)
             if fig:
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
 
 def tab_comparacion(df, indice):
@@ -1373,7 +1373,7 @@ def tab_comparacion(df, indice):
             marker_color=asignar_color_hex(clase)
         ))
     fig.update_layout(barmode='stack', height=400, xaxis_title="Fecha de Vuelo", yaxis_title="Porcentaje (%)")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
@@ -1415,7 +1415,7 @@ def tab_comparacion(df, indice):
             'Máx': '{:.3f}',
             '% Sanos': '{:.1f}'
         }),
-        width="stretch",
+        use_container_width=True,
         hide_index=True
     )
     
@@ -1443,7 +1443,7 @@ def tab_comparacion(df, indice):
         
         st.dataframe(
             diff_df,
-            width="stretch",
+            use_container_width=True,
             hide_index=True
         )
 
@@ -1488,7 +1488,7 @@ def tab_datos(df, indices_disponibles):
     if 'lat' in df_mostrar.columns:
         df_mostrar = df_mostrar.rename(columns={'lat': 'Latitud', 'lon': 'Longitud'})
     
-    st.dataframe(df_mostrar, width="stretch", height=500)
+    st.dataframe(df_mostrar, use_container_width=True, height=500)
     
     st.markdown("---")
     
