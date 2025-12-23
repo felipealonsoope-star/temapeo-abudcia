@@ -17,12 +17,35 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import folium
-from folium.plugins import Fullscreen
-from streamlit_folium import st_folium
+# Folium comentado - usando Plotly Mapbox (más estable en Streamlit Cloud)
+# import folium
+# from folium.plugins import Fullscreen
+# from streamlit_folium import st_folium
 from datetime import datetime
 import os
 import base64
+import time
+
+
+def mostrar_mapa_seguro(fig, height, key):
+    """Muestra el mapa Plotly con manejo de errores."""
+    try:
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True, key=key)
+        else:
+            st.warning("No hay datos para mostrar en el mapa")
+    except Exception as e:
+        st.info(f"""
+        ⏳ **El mapa está tardando en cargar**
+        
+        Esto puede deberse a la velocidad de conexión. Mientras tanto, puedes revisar los datos en las tablas y gráficos.
+        
+        **Opciones:**
+        - Refrescar la página (F5)
+        - Reducir el número de cuarteles seleccionados
+        """)
+        if st.button(f"🔄 Reintentar", key=f"retry_{key}"):
+            st.rerun()
 
 # =============================================================================
 # CONFIGURACIÓN DE PÁGINA
@@ -528,115 +551,300 @@ def generar_analisis_comparativo(df, indice, fecha1, fecha2):
 
 
 # =============================================================================
-# COMPONENTES DE MAPA
+# COMPONENTES DE MAPA - PLOTLY MAPBOX
 # =============================================================================
 
-def crear_mapa_folium(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None):
-    """Crea mapa con Folium incluyendo polígonos de cuarteles."""
+def crear_mapa_plotly(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None):
+    """Crea mapa con Plotly Mapbox (más estable que Folium)."""
     col_clase = f"{indice}_clase"
     if col_clase not in df.columns or len(df) == 0:
         return None
     
-    center_lat = df['lat'].mean()
-    center_lon = df['lon'].mean()
-    min_lat, max_lat = df['lat'].min(), df['lat'].max()
-    min_lon, max_lon = df['lon'].min(), df['lon'].max()
+    # Preparar datos con colores
+    df_plot = df.copy()
+    df_plot['color'] = df_plot[col_clase].apply(asignar_color_hex)
+    df_plot['indice_valor'] = df_plot[indice].round(3)
+    df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
     
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=17, max_zoom=22, tiles=None)
+    # Texto para hover
+    df_plot['hover_text'] = df_plot.apply(
+        lambda row: f"<b>ID:</b> {row.get('id', 'N/A')}<br>" +
+                    f"<b>Cuartel:</b> {row.get('Cuartel', 'N/A')}<br>" +
+                    f"<b>Variedad:</b> {row.get('Variedad', 'N/A')}<br>" +
+                    f"<b>{indice.upper()}:</b> {row['indice_valor']}<br>" +
+                    f"<b>Clase:</b> {row.get(col_clase, 'N/A')}<br>" +
+                    f"<b>Altura:</b> {row['altura_str']}",
+        axis=1
+    )
     
-    folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-        attr='Google',
-        name='Satélite',
-        max_zoom=22,
-        max_native_zoom=20
-    ).add_to(m)
+    # Crear figura base con scattermapbox
+    fig = go.Figure()
     
-    # Agregar polígonos de cuarteles si están disponibles
+    # Agregar polígonos de cuarteles primero (para que queden debajo)
     if gdf_poligonos is not None and len(gdf_poligonos) > 0:
-        # Filtrar polígonos que están en los datos
         cuarteles_en_datos = df['Cuartel'].unique() if 'Cuartel' in df.columns else []
         gdf_filtrado = gdf_poligonos[gdf_poligonos['Cuartel'].isin(cuarteles_en_datos)]
         
         if len(gdf_filtrado) > 0:
-            # Calcular estadísticas por cuartel para el color
             stats_cuartel = df.groupby('Cuartel')[indice].mean().to_dict()
             
             for _, row in gdf_filtrado.iterrows():
                 cuartel_nombre = row['Cuartel']
                 media_indice = stats_cuartel.get(cuartel_nombre, 0)
                 
-                # Color del borde según el índice promedio
-                if media_indice >= 0.7:
-                    color_borde = "#0a12df"
-                elif media_indice >= 0.5:
-                    color_borde = "#0a12df"
-                elif media_indice >= 0.3:
-                    color_borde = "#0a12df"
+                # Extraer coordenadas del polígono
+                geom = row.geometry
+                if geom.geom_type == 'Polygon':
+                    coords = list(geom.exterior.coords)
+                elif geom.geom_type == 'MultiPolygon':
+                    coords = list(geom.geoms[0].exterior.coords)
                 else:
-                    color_borde = "#0a12df"
+                    continue
                 
-                # Crear tooltip con información del cuartel
-                tooltip_text = f"""
-                <b>{cuartel_nombre}</b><br>
-                Especie: {row.get('Especie', 'N/A')}<br>
-                Variedad: {row.get('Variedad', 'N/A')}<br>
-                Superficie: {row.get('Superficie_ha', 0):.2f} ha<br>
-                Año: {row.get('Apla', 'N/A')}<br>
-                {indice.upper()} μ: {media_indice:.3f}
-                """
+                lons = [c[0] for c in coords]
+                lats = [c[1] for c in coords]
                 
-                # Agregar polígono
-                folium.GeoJson(
-                    row.geometry.__geo_interface__,
-                    style_function=lambda x, color=color_borde: {
-                        'fillColor': 'transparent',
-                        'color': color,
-                        'weight': 3,
-                        'fillOpacity': 0
-                    },
-                    tooltip=tooltip_text
-                ).add_to(m)
+                # Hover text para polígono
+                hover_poligono = (f"<b>{cuartel_nombre}</b><br>"
+                                 f"Especie: {row.get('Especie', 'N/A')}<br>"
+                                 f"Variedad: {row.get('Variedad', 'N/A')}<br>"
+                                 f"Superficie: {row.get('Superficie_ha', 0):.2f} ha<br>"
+                                 f"{indice.upper()} μ: {media_indice:.3f}")
+                
+                # Agregar polígono como línea cerrada
+                fig.add_trace(go.Scattermapbox(
+                    lon=lons,
+                    lat=lats,
+                    mode='lines',
+                    line=dict(width=2, color='#0a12df'),
+                    fill='none',
+                    name=cuartel_nombre,
+                    hoverinfo='text',
+                    hovertext=hover_poligono,
+                    showlegend=False
+                ))
     
-    # GeoJSON para puntos
-    features = []
-    for _, row in df.iterrows():
-        color = asignar_color_hex(row[col_clase])
-        props = {
-            'id': int(row.get('id', 0)),
-            'cuartel': str(row.get('Cuartel', 'N/A')),
-            'variedad': str(row.get('Variedad', 'N/A')),
-            'indice': round(float(row.get(indice, 0)), 3),
-            'clase': str(row.get(col_clase, 'N/A')),
-            'altura': round(float(row.get('altura_m', 0)), 2) if pd.notna(row.get('altura_m')) else 0,
-            'color': color
-        }
-        features.append({
-            'type': 'Feature',
-            'geometry': {'type': 'Point', 'coordinates': [row['lon'], row['lat']]},
-            'properties': props
-        })
+    # Agrupar puntos por clase para la leyenda
+    clases_orden = ['Muy bajo', 'Bajo', 'Medio', 'Medio-alto', 'Alto']
     
-    geojson_data = {'type': 'FeatureCollection', 'features': features}
+    for clase in clases_orden:
+        df_clase = df_plot[df_plot[col_clase].str.lower().str.contains(clase.lower(), na=False)]
+        if len(df_clase) == 0:
+            continue
+        
+        color = COLORES_CLASE.get(clase, '#969696')
+        
+        fig.add_trace(go.Scattermapbox(
+            lon=df_clase['lon'],
+            lat=df_clase['lat'],
+            mode='markers',
+            marker=dict(
+                size=radio_puntos * 3,
+                color=color,
+                opacity=0.8
+            ),
+            name=clase,
+            hoverinfo='text',
+            hovertext=df_clase['hover_text'],
+            showlegend=True
+        ))
     
-    folium.GeoJson(
-        geojson_data,
-        name=titulo or f'{indice.upper()}',
-        marker=folium.CircleMarker(radius=radio_puntos, fill=True),
-        style_function=lambda f: {'fillColor': f['properties']['color'], 'color': f['properties']['color'], 'weight': 1, 'fillOpacity': 0.8},
-        tooltip=folium.GeoJsonTooltip(
-            fields=['id', 'cuartel', 'variedad', 'indice', 'clase', 'altura'],
-            aliases=['ID:', 'Cuartel:', 'Variedad:', f'{indice.upper()}:', 'Clase:', 'Altura:'],
-            sticky=True,
-            style="background-color: #1a9641; color: white; font-size: 11px; padding: 6px; border-radius: 4px;"
+    # Calcular centro y zoom
+    center_lat = df['lat'].mean()
+    center_lon = df['lon'].mean()
+    
+    # Calcular zoom basado en el rango de datos
+    lat_range = df['lat'].max() - df['lat'].min()
+    lon_range = df['lon'].max() - df['lon'].min()
+    max_range = max(lat_range, lon_range)
+    
+    # Zoom optimizado
+    if max_range < 0.005:
+        zoom = 18
+    elif max_range < 0.01:
+        zoom = 17
+    elif max_range < 0.03:
+        zoom = 15
+    elif max_range < 0.05:
+        zoom = 14
+    elif max_range < 0.1:
+        zoom = 13
+    else:
+        zoom = 12
+    
+    # Configurar layout del mapa
+    fig.update_layout(
+        mapbox=dict(
+            style="carto-positron",  # Estilo gratuito sin token
+            center=dict(lat=center_lat, lon=center_lon),
+            zoom=zoom
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=500,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255,255,255,0.8)",
+            font=dict(size=10)
+        ),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=11,
+            font_family="Arial"
         )
-    ).add_to(m)
+    )
     
-    m.fit_bounds([[min_lat, min_lon], [max_lat, max_lon]])
-    folium.LayerControl().add_to(m)
-    Fullscreen().add_to(m)
+    return fig
+
+
+def crear_mapa_plotly_satelite(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None):
+    """Crea mapa con Plotly usando tiles satelitales de ESRI."""
+    col_clase = f"{indice}_clase"
+    if col_clase not in df.columns or len(df) == 0:
+        return None
     
-    return m
+    # Preparar datos con colores
+    df_plot = df.copy()
+    df_plot['color'] = df_plot[col_clase].apply(asignar_color_hex)
+    df_plot['indice_valor'] = df_plot[indice].round(3)
+    df_plot['altura_str'] = df_plot['altura_m'].apply(lambda x: f"{x:.2f} m" if pd.notna(x) else "N/A")
+    
+    # Texto para hover
+    df_plot['hover_text'] = df_plot.apply(
+        lambda row: f"<b>ID:</b> {row.get('id', 'N/A')}<br>" +
+                    f"<b>Cuartel:</b> {row.get('Cuartel', 'N/A')}<br>" +
+                    f"<b>Variedad:</b> {row.get('Variedad', 'N/A')}<br>" +
+                    f"<b>{indice.upper()}:</b> {row['indice_valor']}<br>" +
+                    f"<b>Clase:</b> {row.get(col_clase, 'N/A')}<br>" +
+                    f"<b>Altura:</b> {row['altura_str']}",
+        axis=1
+    )
+    
+    # Crear figura base
+    fig = go.Figure()
+    
+    # Agregar polígonos de cuarteles primero
+    if gdf_poligonos is not None and len(gdf_poligonos) > 0:
+        cuarteles_en_datos = df['Cuartel'].unique() if 'Cuartel' in df.columns else []
+        gdf_filtrado = gdf_poligonos[gdf_poligonos['Cuartel'].isin(cuarteles_en_datos)]
+        
+        if len(gdf_filtrado) > 0:
+            stats_cuartel = df.groupby('Cuartel')[indice].mean().to_dict()
+            
+            for _, row in gdf_filtrado.iterrows():
+                cuartel_nombre = row['Cuartel']
+                media_indice = stats_cuartel.get(cuartel_nombre, 0)
+                
+                geom = row.geometry
+                if geom.geom_type == 'Polygon':
+                    coords = list(geom.exterior.coords)
+                elif geom.geom_type == 'MultiPolygon':
+                    coords = list(geom.geoms[0].exterior.coords)
+                else:
+                    continue
+                
+                lons = [c[0] for c in coords]
+                lats = [c[1] for c in coords]
+                
+                hover_poligono = (f"<b>{cuartel_nombre}</b><br>"
+                                 f"Especie: {row.get('Especie', 'N/A')}<br>"
+                                 f"Variedad: {row.get('Variedad', 'N/A')}<br>"
+                                 f"Superficie: {row.get('Superficie_ha', 0):.2f} ha<br>"
+                                 f"{indice.upper()} μ: {media_indice:.3f}")
+                
+                fig.add_trace(go.Scattermapbox(
+                    lon=lons,
+                    lat=lats,
+                    mode='lines',
+                    line=dict(width=3, color='#00BFFF'),
+                    fill='none',
+                    name=cuartel_nombre,
+                    hoverinfo='text',
+                    hovertext=hover_poligono,
+                    showlegend=False
+                ))
+    
+    # Agrupar puntos por clase
+    clases_orden = ['Muy bajo', 'Bajo', 'Medio', 'Medio-alto', 'Alto']
+    
+    for clase in clases_orden:
+        df_clase = df_plot[df_plot[col_clase].str.lower().str.contains(clase.lower(), na=False)]
+        if len(df_clase) == 0:
+            continue
+        
+        color = COLORES_CLASE.get(clase, '#969696')
+        
+        fig.add_trace(go.Scattermapbox(
+            lon=df_clase['lon'],
+            lat=df_clase['lat'],
+            mode='markers',
+            marker=dict(
+                size=radio_puntos * 3,
+                color=color,
+                opacity=0.85
+            ),
+            name=clase,
+            hoverinfo='text',
+            hovertext=df_clase['hover_text'],
+            showlegend=True
+        ))
+    
+    center_lat = df['lat'].mean()
+    center_lon = df['lon'].mean()
+    
+    lat_range = df['lat'].max() - df['lat'].min()
+    lon_range = df['lon'].max() - df['lon'].min()
+    max_range = max(lat_range, lon_range)
+    
+    # Zoom optimizado para Google Satellite (soporta hasta ~20)
+    if max_range < 0.005:
+        zoom = 18
+    elif max_range < 0.01:
+        zoom = 17
+    elif max_range < 0.03:
+        zoom = 15
+    elif max_range < 0.05:
+        zoom = 14
+    elif max_range < 0.1:
+        zoom = 13
+    else:
+        zoom = 12
+    
+    # Usar estilo white-bg con capa satelital de Google
+    fig.update_layout(
+        mapbox=dict(
+            style="white-bg",
+            center=dict(lat=center_lat, lon=center_lon),
+            zoom=zoom,
+            layers=[{
+                "below": "traces",
+                "sourcetype": "raster",
+                "sourceattribution": "Google",
+                "source": [
+                    "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                ]
+            }]
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=500,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255,255,255,0.9)",
+            font=dict(size=10)
+        ),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=11,
+            font_family="Arial"
+        )
+    )
+    
+    return fig
 
 
 # =============================================================================
@@ -830,17 +1038,17 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         
         with col1:
             st.markdown(f"**🗺️ Mapa - {fecha1}**")
-            df1_sample = df1.sample(n=min(5000, len(df1)), random_state=42) if len(df1) > 5000 else df1
-            mapa1 = crear_mapa_folium(df1_sample, indice, radio_puntos, f"{indice.upper()} - {fecha1}", gdf_poligonos)
+            df1_sample = df1.sample(n=min(3000, len(df1)), random_state=42) if len(df1) > 3000 else df1
+            mapa1 = crear_mapa_plotly_satelite(df1_sample, indice, radio_puntos, f"{indice.upper()} - {fecha1}", gdf_poligonos)
             if mapa1:
-                st_folium(mapa1, height=450, use_container_width=True, key="mapa1")
+                st.plotly_chart(mapa1, use_container_width=True, key="mapa1")
         
         with col2:
             st.markdown(f"**🗺️ Mapa - {fecha2}**")
-            df2_sample = df2.sample(n=min(5000, len(df2)), random_state=42) if len(df2) > 5000 else df2
-            mapa2 = crear_mapa_folium(df2_sample, indice, radio_puntos, f"{indice.upper()} - {fecha2}", gdf_poligonos)
+            df2_sample = df2.sample(n=min(3000, len(df2)), random_state=42) if len(df2) > 3000 else df2
+            mapa2 = crear_mapa_plotly_satelite(df2_sample, indice, radio_puntos, f"{indice.upper()} - {fecha2}", gdf_poligonos)
             if mapa2:
-                st_folium(mapa2, height=450, use_container_width=True, key="mapa2")
+                st.plotly_chart(mapa2, use_container_width=True, key="mapa2")
         
         st.markdown("---")
         
@@ -879,10 +1087,10 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             st.subheader(f"🗺️ Mapa - {indice.upper()}")
             st.caption("💡 Pasa el mouse sobre los puntos o polígonos para ver info")
             
-            df_mapa = df.sample(n=min(6000, len(df)), random_state=42) if len(df) > 6000 else df
-            mapa = crear_mapa_folium(df_mapa, indice, radio_puntos, gdf_poligonos=gdf_poligonos)
+            df_mapa = df.sample(n=min(4000, len(df)), random_state=42) if len(df) > 4000 else df
+            mapa = crear_mapa_plotly_satelite(df_mapa, indice, radio_puntos, gdf_poligonos=gdf_poligonos)
             if mapa:
-                st_folium(mapa, height=550, use_container_width=True, key="mapa_single")
+                st.plotly_chart(mapa, use_container_width=True, key="mapa_single")
         
         with col2:
             st.subheader("📊 Distribución")
