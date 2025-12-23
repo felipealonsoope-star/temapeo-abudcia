@@ -692,19 +692,24 @@ def crear_mapa_plotly(df, indice, radio_puntos=3, titulo="", gdf_poligonos=None)
     lon_range = df['lon'].max() - df['lon'].min()
     max_range = max(lat_range, lon_range)
     
-    # Zoom optimizado
-    if max_range < 0.005:
-        zoom = 18
-    elif max_range < 0.01:
+    # Agregar margen para ver el polígono completo (15% extra)
+    max_range = max_range * 1.15
+    
+    # Zoom ajustado para ver polígono completo
+    if max_range < 0.003:
         zoom = 17
-    elif max_range < 0.03:
+    elif max_range < 0.006:
+        zoom = 16
+    elif max_range < 0.01:
         zoom = 15
-    elif max_range < 0.05:
+    elif max_range < 0.02:
         zoom = 14
-    elif max_range < 0.1:
+    elif max_range < 0.05:
         zoom = 13
-    else:
+    elif max_range < 0.1:
         zoom = 12
+    else:
+        zoom = 11
     
     # Configurar layout del mapa
     fig.update_layout(
@@ -853,19 +858,24 @@ def crear_mapa_plotly_satelite(df, indice, radio_puntos=3, titulo="", gdf_poligo
     lon_range = df['lon'].max() - df['lon'].min()
     max_range = max(lat_range, lon_range)
     
-    # Zoom optimizado para Google Satellite (soporta hasta ~20)
-    if max_range < 0.005:
-        zoom = 18
-    elif max_range < 0.01:
+    # Agregar margen para ver el polígono completo (15% extra)
+    max_range = max_range * 1.15
+    
+    # Zoom ajustado para ver polígono completo
+    if max_range < 0.003:
         zoom = 17
-    elif max_range < 0.03:
+    elif max_range < 0.006:
+        zoom = 16
+    elif max_range < 0.01:
         zoom = 15
-    elif max_range < 0.05:
+    elif max_range < 0.02:
         zoom = 14
-    elif max_range < 0.1:
+    elif max_range < 0.05:
         zoom = 13
-    else:
+    elif max_range < 0.1:
         zoom = 12
+    else:
+        zoom = 11
     
     # Usar estilo white-bg con capa satelital de Google
     fig.update_layout(
