@@ -1109,14 +1109,16 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
         
         with col1:
             st.markdown(f"**🗺️ Mapa - {fecha1}**")
-            df1_sample = df1.sample(n=min(3000, len(df1)), random_state=42) if len(df1) > 3000 else df1
+            # Mostrar todos si hay menos de 10000, sino sampling a 8000
+            df1_sample = df1.sample(n=min(8000, len(df1)), random_state=42) if len(df1) > 10000 else df1
             mapa1 = crear_mapa_plotly_satelite(df1_sample, indice, radio_puntos, f"{indice.upper()} - {fecha1}", gdf_poligonos)
             if mapa1:
                 st.plotly_chart(mapa1, use_container_width=True, key="mapa1")
         
         with col2:
             st.markdown(f"**🗺️ Mapa - {fecha2}**")
-            df2_sample = df2.sample(n=min(3000, len(df2)), random_state=42) if len(df2) > 3000 else df2
+            # Mostrar todos si hay menos de 10000, sino sampling a 8000
+            df2_sample = df2.sample(n=min(8000, len(df2)), random_state=42) if len(df2) > 10000 else df2
             mapa2 = crear_mapa_plotly_satelite(df2_sample, indice, radio_puntos, f"{indice.upper()} - {fecha2}", gdf_poligonos)
             if mapa2:
                 st.plotly_chart(mapa2, use_container_width=True, key="mapa2")
@@ -1158,7 +1160,8 @@ def tab_resumen(df, indice, fechas_sel, radio_puntos, gdf_poligonos=None):
             st.subheader(f"🗺️ Mapa - {indice.upper()}")
             st.caption("💡 Pasa el mouse sobre los puntos o polígonos para ver info")
             
-            df_mapa = df.sample(n=min(4000, len(df)), random_state=42) if len(df) > 4000 else df
+            # Mostrar todos si hay menos de 12000, sino sampling a 10000
+            df_mapa = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 12000 else df
             mapa = crear_mapa_plotly_satelite(df_mapa, indice, radio_puntos, gdf_poligonos=gdf_poligonos)
             if mapa:
                 st.plotly_chart(mapa, use_container_width=True, key="mapa_single")
